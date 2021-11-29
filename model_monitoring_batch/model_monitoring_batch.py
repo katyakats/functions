@@ -330,15 +330,26 @@ class BatchProcessor:
                     project=self.project, endpoint_id=endpoint_id
                 )
 
+                logger.info("got an endpoint " + str(endpoint))
+
                 df = pd.read_parquet(full_path)
+
+                logger.info("dddfff is " + str(df))
                 timestamp = df["timestamp"].iloc[-1]
 
+                logger.info("tttimestamp " + str(timestamp))
+
                 named_features_df = list(df["named_features"])
+                logger.info("nnnamed features is " + str(named_features_df))
                 named_features_df = pd.DataFrame(named_features_df)
+
+                logger.info("nnnnamed featues df is " + str(named_features_df))
 
                 current_stats = DFDataInfer.get_stats(
                     df=named_features_df, options=InferOptions.Histogram
                 )
+
+                logger.info("cccurent stats " + str(current_stats))
 
                 drift_result = self.virtual_drift.compute_drift_from_histograms(
                     feature_stats=endpoint.status.feature_stats,
