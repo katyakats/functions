@@ -138,17 +138,29 @@ class VirtualDrift:
         return drift_measures
 
     def compute_drift_from_histograms(self, feature_stats, current_stats):
+        print(f"inside the func1 feature_stats is {feature_stats}, current_stats is {current_stats}")
+
         # Process histogram dictionaries to Dataframe of the histograms
         # with Feature histogram as cols
         base_histogram = self.dict_to_histogram(feature_stats)
+        print(f"base_histogram is {base_histogram}")
+
         latest_histogram = self.dict_to_histogram(current_stats)
+        print(f"latest_histogram is {latest_histogram}")
 
         # Verify all the features exist between datasets
         base_features = set(base_histogram.columns)
+        print(f"base_features is {base_features}")
+
         latest_features = set(latest_histogram.columns)
+        print(f"latest_features is {latest_features}")
 
         features_common = list(base_features.intersection(latest_features))
+        print(f"features_common is {features_common}")
+
         feature_difference = list(base_features ^ latest_features)
+
+        print(f"feature_difference is {feature_difference}")
 
         if not features_common:
             raise ValueError(
@@ -158,15 +170,19 @@ class VirtualDrift:
         base_histogram = base_histogram.drop(
             feature_difference, axis=1, errors="ignore"
         )
+        print(f"base_histogram is {base_histogram}")
+
         latest_histogram = latest_histogram.drop(
             feature_difference, axis=1, errors="ignore"
         )
+        print(f"latest_histogram is {latest_histogram}")
 
         # Compute the drift per feature
         features_drift_measures = self.compute_metrics_over_df(
             base_histogram.loc[:, features_common],
             latest_histogram.loc[:, features_common],
         )
+        print(f"features_drift_measures is {features_drift_measures}")
 
         # Compute total drift measures for features
         for metric_name in self.metrics.keys():
@@ -182,7 +198,10 @@ class VirtualDrift:
 
         drift_result = defaultdict(dict)
 
+        print(f"features_common is {features_common}")
+
         for feature in features_common:
+            print(f"features_drift_measures is {features_drift_measures}")
             for metric, values in features_drift_measures.items():
                 drift_result[feature][metric] = values[feature]
                 sum = features_drift_measures[metric]["total_sum"]
@@ -195,18 +214,22 @@ class VirtualDrift:
                     drift_result[f"{metric}_weighted_mean"] = weighted_mean
 
         if self.label_col:
+            print(f"self.label_col is {self.label_col}")
             label_drift_measures = self.compute_metrics_over_df(
                 base_histogram.loc[:, self.label_col],
                 latest_histogram.loc[:, self.label_col],
             )
+            print(f"label_drift_measures is {label_drift_measures}")
             for metric, values in label_drift_measures.items():
                 drift_result[self.label_col][metric] = values[metric]
 
         if self.prediction_col:
+            print(f"self.prediction_col is {self.prediction_col}")
             prediction_drift_measures = self.compute_metrics_over_df(
                 base_histogram.loc[:, self.prediction_col],
                 latest_histogram.loc[:, self.prediction_col],
             )
+            print(f"prediction_drift_measures is {prediction_drift_measures}")
             for metric, values in prediction_drift_measures.items():
                 drift_result[self.prediction_col][metric] = values[metric]
 
@@ -332,16 +355,27 @@ class BatchProcessor:
                 endpoint = self.db.get_model_endpoint(
                     project=self.project, endpoint_id=endpoint_id
                 )
+                print(f"endpoint is {endpoint}")
 
                 df = pd.read_parquet(full_path)
+
+                print(f"dataframe is {df}")
                 timestamp = df["timestamp"].iloc[-1]
 
+                print(f"timestamp is {timestamp}")
                 named_features_df = list(df["named_features"])
+                print(f"named_features_df is {named_features_df}")
+
                 named_features_df = pd.DataFrame(named_features_df)
+
+                print(f"named_features_df2 is {named_features_df}")
 
                 current_stats = DFDataInfer.get_stats(
                     df=named_features_df, options=InferOptions.Histogram
                 )
+
+                print(f"current_stats is {current_stats}")
+                print(f"feature_stats is {endpoint.status.feature_stats}")
 
                 drift_result = self.virtual_drift.compute_drift_from_histograms(
                     feature_stats=endpoint.status.feature_stats,
