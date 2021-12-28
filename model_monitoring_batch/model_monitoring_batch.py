@@ -353,10 +353,17 @@ class BatchProcessor:
                 logger.info(f"Now processing {full_path}")
 
                 endpoint = self.db.get_model_endpoint(
-                    project=self.project, endpoint_id=endpoint_id, feature_analysis=True,
+                    project=self.project, endpoint_id=endpoint_id
                 )
+                from mlrun.utils.model_monitoring import EndpointType
+
+                print(f"checking for type")
+                if endpoint.status.endpoint_type == EndpointType.ROUTER:
+                    print(f"this is router skipping. feature status is {endpoint.status.feature_stats}")
+                    continue
+
                 print(f"endpoint is {endpoint}")
-                print(f"MAYBE NOW feature_stats is {endpoint.status.feature_stats}")
+                print(f"MAYBE NOW2 feature_stats is {endpoint.status.feature_stats}")
 
                 df = pd.read_parquet(full_path)
 
