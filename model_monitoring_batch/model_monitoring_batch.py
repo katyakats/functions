@@ -353,9 +353,10 @@ class BatchProcessor:
                 logger.info(f"Now processing {full_path}")
 
                 endpoint = self.db.get_model_endpoint(
-                    project=self.project, endpoint_id=endpoint_id
+                    project=self.project, endpoint_id=endpoint_id, feature_analysis=True,
                 )
                 print(f"endpoint is {endpoint}")
+                print(f"MAYBE NOW feature_stats is {endpoint.status.feature_stats}")
 
                 df = pd.read_parquet(full_path)
 
