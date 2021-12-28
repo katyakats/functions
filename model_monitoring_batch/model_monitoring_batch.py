@@ -324,6 +324,7 @@ class BatchProcessor:
 
         active_endpoints = set()
         for endpoint in endpoints.endpoints:
+            logger.info(f"NNNN active for endpoint{endpoint.metadata.uid} active {endpoint.spec.active}")
             if endpoint.spec.active:
                 active_endpoints.add(endpoint.metadata.uid)
 
@@ -362,8 +363,8 @@ class BatchProcessor:
                     print(f"this is router skipping. feature status is {endpoint.status.feature_stats}")
                     continue
 
-                print(f"endpoint is {endpoint}")
-                print(f"MAYBE NOW2 feature_stats is {endpoint.status.feature_stats}")
+                print(f"NNNNNN endpoint is {endpoint}")
+                print(f"NNNNNNN MAYBE NOW2 feature_stats is {endpoint.status.feature_stats}")
 
                 df = pd.read_parquet(full_path)
 
