@@ -121,6 +121,7 @@ def train_model(
             kwargs["feature_vector"] = dataset.meta.uri
 
     context.set_label("class", model_pkg_class)
+    print(f"RRRRRRRRRRRRRRR {artifact_path}")
     context.log_model(
         "model",
         body=dumps(model),
