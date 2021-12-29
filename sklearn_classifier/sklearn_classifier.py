@@ -33,6 +33,8 @@ def train_model(
     file_ext: str = "parquet",
     model_pkg_file: str = "",
     random_state: int = 1,
+    artifact_path=None,
+    name_model=None,
 ) -> None:
     """train a classifier
 
@@ -98,7 +100,7 @@ def train_model(
 
     model.fit(**model_config["FIT"])
 
-    artifact_path = context.artifact_subpath(models_dest)
+    artifact_path = artifact_path or context.artifact_subpath(models_dest)
     plots_path = context.artifact_subpath(models_dest, plots_dest)
     if model_evaluator:
         eval_metrics = model_evaluator(
@@ -121,13 +123,14 @@ def train_model(
             kwargs["feature_vector"] = dataset.meta.uri
 
     context.set_label("class", model_pkg_class)
-    print(f"RRRRRRRRRRRRRRR {artifact_path}")
+    name_model = name_model or "model.pkl"
+    print(f"RRRRRRRRRRRRRRR222 {artifact_path}. name {name_model}")
     context.log_model(
         "model",
         body=dumps(model),
         artifact_path=artifact_path,
         extra_data=eval_metrics,
-        model_file="model.pkl",
+        model_file=name_model,
         metrics=context.results,
         labels={"class": model_pkg_class},
         framework="sklearn",
