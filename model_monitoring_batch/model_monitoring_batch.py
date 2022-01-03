@@ -12,7 +12,7 @@ from mlrun import store_manager
 from mlrun.data_types.infer import DFDataInfer, InferOptions
 from mlrun.run import MLClientCtx
 from mlrun.utils import logger, config
-from mlrun.utils.model_monitoring import parse_model_endpoint_store_prefix
+from mlrun.utils.model_monitoring import EndpointType, parse_model_endpoint_store_prefix
 from mlrun.utils.v3io_clients import get_v3io_client, get_frames_client
 from sklearn.preprocessing import KBinsDiscretizer
 
@@ -331,6 +331,11 @@ class BatchProcessor:
                 endpoint = self.db.get_model_endpoint(
                     project=self.project, endpoint_id=endpoint_id
                 )
+
+                if endpoint.status.endpoint_type == EndpointType.ROUTER:
+                    # endpoint.status.feature_stats is None
+                    logger.info(f"{endpoint_id} is router skipping")
+                    continue
 
                 df = pd.read_parquet(full_path)
                 timestamp = df["timestamp"].iloc[-1]
