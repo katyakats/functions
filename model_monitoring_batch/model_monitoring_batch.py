@@ -229,6 +229,8 @@ class BatchProcessor:
             model_monitoring_access_key or v3io_access_key
         )
 
+        print(f"DDDDDDD {model_monitoring_access_key} {v3io_access_key}")
+
         self.virtual_drift = VirtualDrift(inf_capping=10)
 
         template = config.model_endpoint_monitoring.store_prefixes.default
@@ -362,6 +364,7 @@ class BatchProcessor:
                 )
 
                 if drift_status == "POSSIBLE_DRIFT" or drift_status == "DRIFT_DETECTED":
+                    print("JJJJJJJJJ 1")
                     self.v3io.stream.put_records(
                         container=self.stream_container,
                         stream_path=self.stream_path,
@@ -378,6 +381,7 @@ class BatchProcessor:
                             }
                         ],
                     )
+                    print("JJJJJJJJJ 2")
 
                 self.v3io.kv.update(
                     container=self.kv_container,
@@ -390,6 +394,8 @@ class BatchProcessor:
                     },
                 )
 
+                print("JJJJJJJJJ 3")
+
                 tsdb_drift_measures = {
                     "endpoint_id": endpoint_id,
                     "timestamp": pd.to_datetime(timestamp, format=TIME_FORMAT),
@@ -398,6 +404,8 @@ class BatchProcessor:
                     "kld_mean": drift_result["kld_mean"],
                     "hellinger_mean": drift_result["hellinger_mean"],
                 }
+
+                print("JJJJJJJJJ 4")
 
                 self.frames.write(
                     backend="tsdb",
