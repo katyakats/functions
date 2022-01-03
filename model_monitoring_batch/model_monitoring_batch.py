@@ -317,97 +317,97 @@ class BatchProcessor:
             if endpoint_id not in active_endpoints:
                 continue
 
-            try:
-                last_year = self.get_last_created_dir(fs, endpoint_dir)
-                last_month = self.get_last_created_dir(fs, last_year)
-                last_day = self.get_last_created_dir(fs, last_month)
-                last_hour = self.get_last_created_dir(fs, last_day)
+#            try:
+            last_year = self.get_last_created_dir(fs, endpoint_dir)
+            last_month = self.get_last_created_dir(fs, last_year)
+            last_day = self.get_last_created_dir(fs, last_month)
+            last_hour = self.get_last_created_dir(fs, last_day)
 
-                full_path = f"{prefix}{last_hour['name']}"
+            full_path = f"{prefix}{last_hour['name']}"
 
-                logger.info(f"Now processing {full_path}")
+            logger.info(f"Now processing {full_path}")
 
-                endpoint = self.db.get_model_endpoint(
-                    project=self.project, endpoint_id=endpoint_id
+            endpoint = self.db.get_model_endpoint(
+                project=self.project, endpoint_id=endpoint_id
+            )
+
+            df = pd.read_parquet(full_path)
+            timestamp = df["timestamp"].iloc[-1]
+
+            named_features_df = list(df["named_features"])
+            named_features_df = pd.DataFrame(named_features_df)
+
+            current_stats = DFDataInfer.get_stats(
+                df=named_features_df, options=InferOptions.Histogram
+            )
+
+            drift_result = self.virtual_drift.compute_drift_from_histograms(
+                feature_stats=endpoint.status.feature_stats,
+                current_stats=current_stats,
+            )
+
+            logger.info("Drift result", drift_result=drift_result)
+
+            drift_status, drift_measure = self.check_for_drift(
+                drift_result=drift_result, endpoint=endpoint
+            )
+
+            logger.info(
+                "Drift status",
+                endpoint_id=endpoint_id,
+                drift_status=drift_status,
+                drift_measure=drift_measure,
+            )
+
+            if drift_status == "POSSIBLE_DRIFT" or drift_status == "DRIFT_DETECTED":
+                self.v3io.stream.put_records(
+                    container=self.stream_container,
+                    stream_path=self.stream_path,
+                    records=[
+                        {
+                            "data": json.dumps(
+                                {
+                                    "endpoint_id": endpoint_id,
+                                    "drift_status": drift_status,
+                                    "drift_measure": drift_measure,
+                                    "drift_per_feature": {**drift_result},
+                                }
+                            )
+                        }
+                    ],
                 )
 
-                df = pd.read_parquet(full_path)
-                timestamp = df["timestamp"].iloc[-1]
+            self.v3io.kv.update(
+                container=self.kv_container,
+                table_path=self.kv_path,
+                key=endpoint_id,
+                attributes={
+                    "current_stats": json.dumps(current_stats),
+                    "drift_measures": json.dumps(drift_result),
+                    "drift_status": drift_status,
+                },
+            )
 
-                named_features_df = list(df["named_features"])
-                named_features_df = pd.DataFrame(named_features_df)
+            tsdb_drift_measures = {
+                "endpoint_id": endpoint_id,
+                "timestamp": pd.to_datetime(timestamp, format=TIME_FORMAT),
+                "record_type": "drift_measures",
+                "tvd_mean": drift_result["tvd_mean"],
+                "kld_mean": drift_result["kld_mean"],
+                "hellinger_mean": drift_result["hellinger_mean"],
+            }
 
-                current_stats = DFDataInfer.get_stats(
-                    df=named_features_df, options=InferOptions.Histogram
-                )
+            self.frames.write(
+                backend="tsdb",
+                table=self.tsdb_path,
+                dfs=pd.DataFrame.from_dict([tsdb_drift_measures]),
+                index_cols=["timestamp", "endpoint_id", "record_type"],
+            )
 
-                drift_result = self.virtual_drift.compute_drift_from_histograms(
-                    feature_stats=endpoint.status.feature_stats,
-                    current_stats=current_stats,
-                )
+            logger.info(f"Done updating drift measures {full_path}")
 
-                logger.info("Drift result", drift_result=drift_result)
-
-                drift_status, drift_measure = self.check_for_drift(
-                    drift_result=drift_result, endpoint=endpoint
-                )
-
-                logger.info(
-                    "Drift status",
-                    endpoint_id=endpoint_id,
-                    drift_status=drift_status,
-                    drift_measure=drift_measure,
-                )
-
-                if drift_status == "POSSIBLE_DRIFT" or drift_status == "DRIFT_DETECTED":
-                    self.v3io.stream.put_records(
-                        container=self.stream_container,
-                        stream_path=self.stream_path,
-                        records=[
-                            {
-                                "data": json.dumps(
-                                    {
-                                        "endpoint_id": endpoint_id,
-                                        "drift_status": drift_status,
-                                        "drift_measure": drift_measure,
-                                        "drift_per_feature": {**drift_result},
-                                    }
-                                )
-                            }
-                        ],
-                    )
-
-                self.v3io.kv.update(
-                    container=self.kv_container,
-                    table_path=self.kv_path,
-                    key=endpoint_id,
-                    attributes={
-                        "current_stats": json.dumps(current_stats),
-                        "drift_measures": json.dumps(drift_result),
-                        "drift_status": drift_status,
-                    },
-                )
-
-                tsdb_drift_measures = {
-                    "endpoint_id": endpoint_id,
-                    "timestamp": pd.to_datetime(timestamp, format=TIME_FORMAT),
-                    "record_type": "drift_measures",
-                    "tvd_mean": drift_result["tvd_mean"],
-                    "kld_mean": drift_result["kld_mean"],
-                    "hellinger_mean": drift_result["hellinger_mean"],
-                }
-
-                self.frames.write(
-                    backend="tsdb",
-                    table=self.tsdb_path,
-                    dfs=pd.DataFrame.from_dict([tsdb_drift_measures]),
-                    index_cols=["timestamp", "endpoint_id", "record_type"],
-                )
-
-                logger.info(f"Done updating drift measures {full_path}")
-
-            except Exception as e:
-                logger.error(e)
+#            except Exception as e:
+#                logger.error(e)
 
     def check_for_drift(self, drift_result, endpoint):
         tvd_mean = drift_result.get("tvd_mean")
